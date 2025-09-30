@@ -18,6 +18,7 @@ class SpeechRecognitionServiceImpl implements SpeechRecognitionService {
   final StreamController<String> _controller =
       StreamController<String>.broadcast();
   bool _initialized = false;
+  String? _localeId;
 
   @override
   Stream<String> get transcriptionStream => _controller.stream;
@@ -29,6 +30,14 @@ class SpeechRecognitionServiceImpl implements SpeechRecognitionService {
       onError: (e) {},
     );
     _initialized = available;
+    if (available) {
+      try {
+        final sys = await _engine.systemLocale();
+        _localeId = sys?.localeId;
+      } catch (_) {
+        _localeId = null;
+      }
+    }
     return available;
   }
 
@@ -44,6 +53,9 @@ class SpeechRecognitionServiceImpl implements SpeechRecognitionService {
         if (text.isEmpty) return;
         if (!_controller.isClosed) _controller.add(text);
       },
+      localeId: _localeId,
+      listenFor: const Duration(minutes: 2),
+      pauseFor: const Duration(seconds: 3),
       listenOptions: stt.SpeechListenOptions(
         listenMode: stt.ListenMode.dictation,
         partialResults: partialResults,
