@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../widget/control_buttons.dart';
 import '../widget/text_display.dart';
 import '../widget/timer_display.dart';
 import '../widget/waveform.dart';
@@ -64,7 +65,6 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
         _waveformTick,
         (_) => _pushWaveformSample(model),
       );
-      model.startTimer();
     });
   }
 
@@ -75,11 +75,20 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
   }
 
   void _pushWaveformSample(VoiceToTextModel model) {
-    final sample = List<double>.generate(_waveformSampleCount, (index) {
-      final variance = math.sin(index / 4) * 0.3 + 0.5;
-      final noise = (_random.nextDouble() - 0.5) * 0.2;
-      return (variance + noise).clamp(0.0, 1.0);
+    final halfCount = _waveformSampleCount ~/ 2;
+    final leading = List<double>.generate(halfCount, (index) {
+      final phase = index / halfCount * math.pi;
+      final base = (math.sin(phase) * 0.5) + 0.5;
+      final noise = (_random.nextDouble() - 0.5) * 0.15;
+      return (base + noise).clamp(0.0, 1.0);
     });
+    final trailing = List<double>.from(leading.reversed);
+    final sample = [...leading, ...trailing];
+    if (sample.length < _waveformSampleCount) {
+      sample.addAll(
+        List<double>.filled(_waveformSampleCount - sample.length, 0.3),
+      );
+    }
     model.updateWaveform(sample);
   }
 
@@ -105,22 +114,49 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
               flex: 3,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: WaveformStream(
-                  stream: model.waveformStream,
-                  initialAmplitudes: model.waveformData,
-                  height: 220,
-                  barColor: Colors.black87,
-                  barWidth: 3,
-                  spacing: 6,
-                  backgroundColor: Colors.transparent,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: WaveformStream(
+                      stream: model.waveformStream,
+                      initialAmplitudes: model.waveformData,
+                      height: 220,
+                      barColor: Colors.black87,
+                      barWidth: 3,
+                      spacing: 6,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
                 ),
               ),
             ),
             TimerDisplay(duration: model.elapsedDuration),
+            ControlButtonsRow(
+              state: model.recordingState,
+              onMicTap: () => _handleMicTap(model),
+              onPause: model.pauseRecording,
+              onResume: model.resumeRecording,
+              onDiscard: model.discardRecording,
+            ),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
+  }
+
+  void _handleMicTap(VoiceToTextModelState model) {
+    switch (model.recordingState) {
+      case RecordingState.idle:
+      case RecordingState.stopped:
+        model.startRecording();
+        break;
+      case RecordingState.recording:
+        model.stopRecording();
+        break;
+      case RecordingState.paused:
+        model.stopRecording();
+        break;
+    }
   }
 }

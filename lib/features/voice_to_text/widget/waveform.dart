@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -151,14 +150,14 @@ class WaveformPainter extends CustomPainter {
       return;
     }
 
+    final totalWidth =
+        amplitudes.length * barWidth + (amplitudes.length - 1) * spacing;
+    final startX = (size.width - totalWidth) / 2;
+
     final paint = Paint()
       ..color = barColor
       ..strokeWidth = barWidth
       ..strokeCap = StrokeCap.round;
-
-    final totalWidth =
-        amplitudes.length * barWidth + (amplitudes.length - 1) * spacing;
-    final startX = math.max((size.width - totalWidth) / 2, 0.0);
     final maxHeight = size.height;
 
     for (var i = 0; i < amplitudes.length; i++) {

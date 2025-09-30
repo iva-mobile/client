@@ -10,6 +10,7 @@ abstract class VoiceToTextModel extends Listenable {
   Stream<List<double>> get waveformStream;
   Duration get elapsedDuration;
   bool get isTimerRunning;
+  RecordingState get recordingState;
 
   void setActiveWord(int index);
   void toggleCursorVisibility(bool visible);
@@ -17,18 +18,28 @@ abstract class VoiceToTextModel extends Listenable {
   void startTimer();
   void pauseTimer();
   void resetTimer();
+  void startRecording();
+  void pauseRecording();
+  void resumeRecording();
+  void stopRecording();
+  void restartRecording();
+  void discardRecording();
 
   // Other state already planned (timer, waveform, recording commands) lives here too.
 }
+
+enum RecordingState { idle, recording, paused, stopped }
 
 class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   VoiceToTextModelState({
     required List<String> initialTranscript,
     int initialActiveWordIndex = 0,
     bool initialCursorVisible = true,
+    RecordingState initialRecordingState = RecordingState.idle,
   }) : _transcript = List.unmodifiable(initialTranscript),
        _activeWordIndex = initialActiveWordIndex,
-       _isCursorVisible = initialCursorVisible;
+       _isCursorVisible = initialCursorVisible,
+       _recordingState = initialRecordingState;
 
   final List<String> _transcript;
   int _activeWordIndex;
@@ -39,6 +50,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   Duration _elapsedDuration = Duration.zero;
   bool _isTimerRunning = false;
   Timer? _timer;
+  RecordingState _recordingState;
 
   @override
   List<String> get transcript => _transcript;
@@ -60,6 +72,9 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
 
   @override
   bool get isTimerRunning => _isTimerRunning;
+
+  @override
+  RecordingState get recordingState => _recordingState;
 
   @override
   void setActiveWord(int index) {
@@ -118,6 +133,57 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     if (hadElapsed || wasRunning) {
       notifyListeners();
     }
+  }
+
+  @override
+  void startRecording() {
+    if (_recordingState == RecordingState.recording) return;
+    _recordingState = RecordingState.recording;
+    startTimer();
+    notifyListeners();
+  }
+
+  @override
+  void pauseRecording() {
+    if (_recordingState != RecordingState.recording) return;
+    _recordingState = RecordingState.paused;
+    pauseTimer();
+    notifyListeners();
+  }
+
+  @override
+  void resumeRecording() {
+    if (_recordingState != RecordingState.paused) return;
+    _recordingState = RecordingState.recording;
+    startTimer();
+    notifyListeners();
+  }
+
+  @override
+  void stopRecording() {
+    if (_recordingState == RecordingState.stopped) return;
+    _recordingState = RecordingState.stopped;
+    resetTimer();
+    notifyListeners();
+  }
+
+  @override
+  void restartRecording() {
+    _recordingState = RecordingState.recording;
+    resetTimer();
+    startTimer();
+    notifyListeners();
+  }
+
+  @override
+  void discardRecording() {
+    _recordingState = RecordingState.idle;
+    _waveformData = const [];
+    if (!_waveformController.isClosed) {
+      _waveformController.add(_waveformData);
+    }
+    resetTimer();
+    notifyListeners();
   }
 
   @override
