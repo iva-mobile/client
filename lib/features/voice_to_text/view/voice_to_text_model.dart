@@ -155,6 +155,8 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
 
   @override
   void startRecording() {
+    // Clear onboarding text so the transcript area streams fresh speech
+    _applyTranscription(const [], 0);
     toggleCursorVisibility(true);
     _beginRecording();
   }
