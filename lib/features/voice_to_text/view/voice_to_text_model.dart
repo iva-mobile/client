@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-
 import 'package:flutter/foundation.dart';
 import 'package:iva_mobile/core/services/audio_capture.dart';
 import 'package:iva_mobile/core/services/speech_recognition.dart';
@@ -68,6 +67,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   final List<double> _amplitudeWindow = <double>[];
   final int _waveformWindowSize;
   String? _lastError;
+  static const bool _logTranscription = false;
   // No mock fallback: live amplitude must be provided by platform service
 
   @override
@@ -118,6 +118,11 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   void updateTranscription(String text, {int? activeWordIndex}) {
     final words = _normalizeTranscript(text);
     final changed = _applyTranscription(words, activeWordIndex);
+    if (_logTranscription && kDebugMode) {
+      final preview = text.length > 120 ? '${text.substring(0, 120)}…' : text;
+      // ignore: avoid_print
+      print('[VM] transcription update: "$preview" (words=${words.length})');
+    }
     if (changed) {
       notifyListeners();
     }
@@ -177,7 +182,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     if (_recordingState != RecordingState.paused) return;
     _recordingState = RecordingState.recording;
     _startTimer(notify: false);
-    audio?.resume();
+    // Avoid mic contention: rely on speech sound levels while recording
     speech?.startListening(partialResults: true);
     toggleCursorVisibility(true);
     notifyListeners();
@@ -189,7 +194,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _recordingState = RecordingState.stopped;
     _resetTimer(notify: false);
     _teardownStreams();
-    audio?.stop();
     speech?.stopListening();
     toggleCursorVisibility(false);
     notifyListeners();
@@ -203,7 +207,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _recordingState = RecordingState.recording;
     _startTimer(notify: false);
     _setupStreams();
-    audio?.start();
     speech?.startListening(partialResults: true);
     toggleCursorVisibility(true);
     notifyListeners();
@@ -215,7 +218,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _seedAmplitudeWindow();
     final timerChanged = _resetTimer(notify: false);
     _teardownStreams();
-    audio?.stop();
     speech?.cancel();
     final previousState = _recordingState;
     _recordingState = RecordingState.idle;
@@ -251,7 +253,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _recordingState = RecordingState.recording;
     _startTimer(notify: false);
     _setupStreams();
-    await audio?.start();
     await speech?.startListening(partialResults: true);
     // Web implementation uses getUserMedia; on unsupported env, ensurePermission returns denied
     notifyListeners();
