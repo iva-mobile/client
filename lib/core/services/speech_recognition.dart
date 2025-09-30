@@ -17,6 +17,7 @@ class SpeechRecognitionServiceImpl implements SpeechRecognitionService {
   final stt.SpeechToText _engine;
   final StreamController<String> _controller =
       StreamController<String>.broadcast();
+  bool _initialized = false;
 
   @override
   Stream<String> get transcriptionStream => _controller.stream;
@@ -27,21 +28,21 @@ class SpeechRecognitionServiceImpl implements SpeechRecognitionService {
       onStatus: (_) {},
       onError: (e) {},
     );
+    _initialized = available;
     return available;
   }
 
   @override
   Future<void> startListening({bool partialResults = true}) async {
-    if (!_engine.isAvailable) {
+    if (!_engine.isAvailable || !_initialized) {
       final ok = await initialize();
       if (!ok) return;
     }
     await _engine.listen(
       onResult: (result) {
         final text = result.recognizedWords;
-        if (!_controller.isClosed) {
-          _controller.add(text);
-        }
+        if (text.isEmpty) return;
+        if (!_controller.isClosed) _controller.add(text);
       },
       listenOptions: stt.SpeechListenOptions(
         listenMode: stt.ListenMode.dictation,
