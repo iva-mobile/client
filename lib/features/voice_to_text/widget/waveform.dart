@@ -13,6 +13,7 @@ class WaveformWidget extends StatefulWidget {
     this.spacing = 6,
     this.backgroundColor = Colors.transparent,
     this.animationDuration = const Duration(milliseconds: 120),
+    this.minBarHeight = 2,
   });
 
   final List<double> amplitudes;
@@ -22,6 +23,7 @@ class WaveformWidget extends StatefulWidget {
   final double spacing;
   final Color backgroundColor;
   final Duration animationDuration;
+  final double minBarHeight;
 
   @override
   State<WaveformWidget> createState() => _WaveformWidgetState();
@@ -115,6 +117,7 @@ class _WaveformWidgetState extends State<WaveformWidget>
             barColor: widget.barColor,
             barWidth: widget.barWidth,
             spacing: widget.spacing,
+            minBarHeight: widget.minBarHeight,
           ),
         ),
       ),
@@ -128,12 +131,14 @@ class WaveformPainter extends CustomPainter {
     required this.barColor,
     required this.barWidth,
     required this.spacing,
+    this.minBarHeight = 2,
   });
 
   final List<double> amplitudes;
   final Color barColor;
   final double barWidth;
   final double spacing;
+  final double minBarHeight;
 
   static List<double> normalize(List<double> values) {
     return values
@@ -147,6 +152,20 @@ class WaveformPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (amplitudes.isEmpty) {
+      // Draw a flat baseline using minBarHeight
+      final paint = Paint()
+        ..color = barColor
+        ..strokeWidth = barWidth
+        ..strokeCap = StrokeCap.round;
+      final centerY = size.height / 2;
+      final half = minBarHeight / 2;
+      final totalWidth = barWidth + spacing; // minimal placeholder segment
+      final startX = (size.width - totalWidth) / 2;
+      canvas.drawLine(
+        Offset(startX, centerY - half),
+        Offset(startX, centerY + half),
+        paint,
+      );
       return;
     }
 
@@ -162,7 +181,8 @@ class WaveformPainter extends CustomPainter {
 
     for (var i = 0; i < amplitudes.length; i++) {
       final normalized = amplitudes[i].clamp(0.0, 1.0).toDouble();
-      final barHeight = normalized * maxHeight;
+      final barHeight =
+          (normalized * (maxHeight - minBarHeight)) + minBarHeight;
       final x = startX + i * (barWidth + spacing);
       final top = (maxHeight - barHeight) / 2;
       canvas.drawLine(Offset(x, top), Offset(x, top + barHeight), paint);
@@ -189,6 +209,7 @@ class WaveformStream extends StatelessWidget {
     this.spacing = 6,
     this.backgroundColor = Colors.transparent,
     this.animationDuration = const Duration(milliseconds: 120),
+    this.minBarHeight = 2,
   });
 
   final Stream<List<double>> stream;
@@ -199,6 +220,7 @@ class WaveformStream extends StatelessWidget {
   final double spacing;
   final Color backgroundColor;
   final Duration animationDuration;
+  final double minBarHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +237,7 @@ class WaveformStream extends StatelessWidget {
           spacing: spacing,
           backgroundColor: backgroundColor,
           animationDuration: animationDuration,
+          minBarHeight: minBarHeight,
         );
       },
     );
