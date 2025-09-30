@@ -8,10 +8,15 @@ abstract class VoiceToTextModel extends Listenable {
   bool get isCursorVisible;
   List<double> get waveformData;
   Stream<List<double>> get waveformStream;
+  Duration get elapsedDuration;
+  bool get isTimerRunning;
 
   void setActiveWord(int index);
   void toggleCursorVisibility(bool visible);
   void updateWaveform(List<double> amplitudes);
+  void startTimer();
+  void pauseTimer();
+  void resetTimer();
 
   // Other state already planned (timer, waveform, recording commands) lives here too.
 }
@@ -31,6 +36,9 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   List<double> _waveformData = const [];
   final StreamController<List<double>> _waveformController =
       StreamController<List<double>>.broadcast();
+  Duration _elapsedDuration = Duration.zero;
+  bool _isTimerRunning = false;
+  Timer? _timer;
 
   @override
   List<String> get transcript => _transcript;
@@ -46,6 +54,12 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
 
   @override
   Stream<List<double>> get waveformStream => _waveformController.stream;
+
+  @override
+  Duration get elapsedDuration => _elapsedDuration;
+
+  @override
+  bool get isTimerRunning => _isTimerRunning;
 
   @override
   void setActiveWord(int index) {
@@ -72,7 +86,43 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
   }
 
   @override
+  void startTimer() {
+    if (_isTimerRunning) return;
+    _isTimerRunning = true;
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _elapsedDuration += const Duration(seconds: 1);
+      notifyListeners();
+    });
+    notifyListeners();
+  }
+
+  @override
+  void pauseTimer() {
+    if (!_isTimerRunning && _timer == null) return;
+    _isTimerRunning = false;
+    _timer?.cancel();
+    _timer = null;
+    notifyListeners();
+  }
+
+  @override
+  void resetTimer() {
+    final hadElapsed = _elapsedDuration != Duration.zero;
+    final wasRunning = _isTimerRunning || _timer != null;
+    _elapsedDuration = Duration.zero;
+    if (wasRunning) {
+      _timer?.cancel();
+      _timer = null;
+      _isTimerRunning = false;
+    }
+    if (hadElapsed || wasRunning) {
+      notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    _timer?.cancel();
     _waveformController.close();
     super.dispose();
   }
