@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class WaveformWidget extends StatefulWidget {
@@ -51,6 +53,10 @@ class _WaveformWidgetState extends State<WaveformWidget>
     super.didUpdateWidget(oldWidget);
     _controller.duration = widget.animationDuration;
     final normalized = WaveformPainter.normalize(widget.amplitudes);
+    if (listEquals(normalized, _target) &&
+        oldWidget.animationDuration == widget.animationDuration) {
+      return;
+    }
     _start = _resizeList(_displayed, normalized.length);
     _target = _resizeList(normalized, normalized.length);
     if (_target.isEmpty) {
@@ -152,7 +158,7 @@ class WaveformPainter extends CustomPainter {
 
     final totalWidth =
         amplitudes.length * barWidth + (amplitudes.length - 1) * spacing;
-    final startX = (size.width - totalWidth) / 2;
+    final startX = math.max((size.width - totalWidth) / 2, 0.0);
     final maxHeight = size.height;
 
     for (var i = 0; i < amplitudes.length; i++) {
