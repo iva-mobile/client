@@ -32,7 +32,7 @@ class TextDisplayWidget extends StatelessWidget {
     for (var i = 0; i < transcript.length; i++) {
       final word = transcript[i];
 
-      if (i == activeWordIndex) {
+      if (isCursorVisible && i == activeWordIndex) {
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,

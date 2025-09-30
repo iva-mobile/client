@@ -155,6 +155,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
 
   @override
   void startRecording() {
+    toggleCursorVisibility(true);
     _beginRecording();
   }
 
@@ -165,6 +166,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _pauseTimer(notify: false);
     audio?.pause();
     speech?.stopListening();
+    toggleCursorVisibility(false);
     notifyListeners();
   }
 
@@ -175,6 +177,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _startTimer(notify: false);
     audio?.resume();
     speech?.startListening(partialResults: true);
+    toggleCursorVisibility(true);
     notifyListeners();
   }
 
@@ -186,6 +189,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _teardownStreams();
     audio?.stop();
     speech?.stopListening();
+    toggleCursorVisibility(false);
     notifyListeners();
   }
 
@@ -199,6 +203,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     _setupStreams();
     audio?.start();
     speech?.startListening(partialResults: true);
+    toggleCursorVisibility(true);
     notifyListeners();
   }
 
@@ -212,6 +217,7 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     speech?.cancel();
     final previousState = _recordingState;
     _recordingState = RecordingState.idle;
+    toggleCursorVisibility(false);
     if (transcriptChanged ||
         timerChanged ||
         previousState != RecordingState.idle) {
