@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../widget/text_display.dart';
+import '../widget/timer_display.dart';
 import '../widget/waveform.dart';
 import 'voice_to_text_model.dart';
 
@@ -63,6 +64,7 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
         _waveformTick,
         (_) => _pushWaveformSample(model),
       );
+      model.startTimer();
     });
   }
 
@@ -114,6 +116,7 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
                 ),
               ),
             ),
+            TimerDisplay(duration: model.elapsedDuration),
             const SizedBox(height: 24),
           ],
         ),

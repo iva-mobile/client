@@ -1,3 +1,4 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:iva_mobile/features/voice_to_text/view/voice_to_text_model.dart';
@@ -88,5 +89,48 @@ void main() {
         model.dispose();
       },
     );
+
+    test('timer increments while running and pauses correctly', () {
+      fakeAsync((async) {
+        final model = VoiceToTextModelState(initialTranscript: transcript);
+
+        model.startTimer();
+        expect(model.isTimerRunning, isTrue);
+
+        async.elapse(const Duration(seconds: 2));
+        expect(model.elapsedDuration, const Duration(seconds: 2));
+
+        model.pauseTimer();
+        expect(model.isTimerRunning, isFalse);
+
+        async.elapse(const Duration(seconds: 3));
+        expect(model.elapsedDuration, const Duration(seconds: 2));
+
+        model.startTimer();
+        async.elapse(const Duration(seconds: 1));
+        expect(model.elapsedDuration, const Duration(seconds: 3));
+
+        model.dispose();
+      });
+    });
+
+    test('resetTimer clears elapsed duration and stops the timer', () {
+      fakeAsync((async) {
+        final model = VoiceToTextModelState(initialTranscript: transcript);
+
+        model.startTimer();
+        async.elapse(const Duration(seconds: 5));
+        expect(model.elapsedDuration, const Duration(seconds: 5));
+
+        model.resetTimer();
+        expect(model.elapsedDuration, Duration.zero);
+        expect(model.isTimerRunning, isFalse);
+
+        async.elapse(const Duration(seconds: 2));
+        expect(model.elapsedDuration, Duration.zero);
+
+        model.dispose();
+      });
+    });
   });
 }
