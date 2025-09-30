@@ -132,5 +132,47 @@ void main() {
         model.dispose();
       });
     });
+
+    test('recording state transitions control timer lifecycle', () {
+      fakeAsync((async) {
+        final model = VoiceToTextModelState(initialTranscript: transcript);
+
+        expect(model.recordingState, RecordingState.idle);
+
+        model.startRecording();
+        expect(model.recordingState, RecordingState.recording);
+        async.elapse(const Duration(seconds: 2));
+        expect(model.elapsedDuration, const Duration(seconds: 2));
+
+        model.pauseRecording();
+        expect(model.recordingState, RecordingState.paused);
+        async.elapse(const Duration(seconds: 1));
+        expect(model.elapsedDuration, const Duration(seconds: 2));
+
+        model.resumeRecording();
+        expect(model.recordingState, RecordingState.recording);
+        async.elapse(const Duration(seconds: 1));
+        expect(model.elapsedDuration, const Duration(seconds: 3));
+
+        model.stopRecording();
+        expect(model.recordingState, RecordingState.stopped);
+        expect(model.elapsedDuration, Duration.zero);
+
+        model.restartRecording();
+        expect(model.recordingState, RecordingState.recording);
+        expect(model.elapsedDuration, Duration.zero);
+
+        async.elapse(const Duration(seconds: 1));
+        expect(model.elapsedDuration, const Duration(seconds: 1));
+
+        model.updateWaveform([0.2, 0.4]);
+        model.discardRecording();
+        expect(model.recordingState, RecordingState.idle);
+        expect(model.elapsedDuration, Duration.zero);
+        expect(model.waveformData, isEmpty);
+
+        model.dispose();
+      });
+    });
   });
 }
