@@ -17,6 +17,7 @@ void main() {
       expect(() => model.transcript.add('extra'), throwsUnsupportedError);
       expect(model.activeWordIndex, 1);
       expect(model.isCursorVisible, isFalse);
+      expect(model.waveformData, isEmpty);
     });
 
     test('updates active word and notifies listeners', () {
@@ -62,5 +63,30 @@ void main() {
       expect(model.isCursorVisible, isTrue);
       expect(notifyCount, 2);
     });
+
+    test(
+      'updateWaveform stores immutable data, notifies, and emits over stream',
+      () async {
+        final model = VoiceToTextModelState(initialTranscript: transcript);
+        final events = <List<double>>[];
+        final subscription = model.waveformStream.listen(events.add);
+
+        var notifyCount = 0;
+        model.addListener(() => notifyCount++);
+
+        model.updateWaveform([0.1, 0.5, 1.2]);
+
+        expect(model.waveformData, [0.1, 0.5, 1.2]);
+        expect(() => model.waveformData.add(0.3), throwsUnsupportedError);
+        await Future<void>.delayed(Duration.zero);
+        expect(events, [
+          [0.1, 0.5, 1.2],
+        ]);
+        expect(notifyCount, 1);
+
+        await subscription.cancel();
+        model.dispose();
+      },
+    );
   });
 }
