@@ -182,7 +182,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
     if (_recordingState != RecordingState.paused) return;
     _recordingState = RecordingState.recording;
     _startTimer(notify: false);
-    // Avoid mic contention: rely on speech sound levels while recording
     speech?.startListening(partialResults: true);
     toggleCursorVisibility(true);
     notifyListeners();
@@ -242,14 +241,6 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
       _startTimer(notify: false);
       return;
     }
-    if (audio != null) {
-      final status = await audio!.ensurePermission();
-      if (status != AudioPermissionStatus.granted) {
-        _lastError = 'Microphone permission is required to record';
-        notifyListeners();
-        return;
-      }
-    }
     _recordingState = RecordingState.recording;
     _startTimer(notify: false);
     _setupStreams();
@@ -260,13 +251,12 @@ class VoiceToTextModelState extends ChangeNotifier implements VoiceToTextModel {
 
   void _setupStreams() {
     _teardownStreams();
-    if (audio != null) {
-      _ampSub = audio!.amplitudeStream.listen(_pushAmplitude);
-    }
     if (speech != null) {
       _sttSub = speech!.transcriptionStream.listen((text) {
         updateTranscription(text);
       });
+      // Use STT sound level to avoid mic contention with recorder
+      _ampSub = speech!.levelStream.listen(_pushAmplitude);
     }
   }
 
