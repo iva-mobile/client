@@ -14,11 +14,13 @@ void main() {
         initialCursorVisible: false,
       );
 
-      expect(model.transcript, transcript);
+      expect(model.transcript, equals(transcript));
       expect(() => model.transcript.add('extra'), throwsUnsupportedError);
       expect(model.activeWordIndex, 1);
       expect(model.isCursorVisible, isFalse);
-      expect(model.waveformData, isEmpty);
+      expect(model.waveformData, isNotEmpty);
+      expect(model.waveformData.every((v) => v == 0.0), isTrue);
+      expect(model.transcribedText, 'Herman is recording');
     });
 
     test('updates active word and notifies listeners', () {
@@ -36,7 +38,7 @@ void main() {
       expect(notifyCount, 1);
     });
 
-    test('ignores out of range indices', () {
+    test('clamps out of range indices', () {
       final model = VoiceToTextModelState(initialTranscript: transcript);
       var notifyCount = 0;
       model.addListener(() => notifyCount++);
@@ -44,8 +46,8 @@ void main() {
       model.setActiveWord(-1);
       model.setActiveWord(transcript.length);
 
-      expect(model.activeWordIndex, 0);
-      expect(notifyCount, 0);
+      expect(model.activeWordIndex, transcript.length - 1);
+      expect(notifyCount, 1);
     });
 
     test('toggles cursor visibility and notifies once per change', () {
@@ -77,11 +79,11 @@ void main() {
 
         model.updateWaveform([0.1, 0.5, 1.2]);
 
-        expect(model.waveformData, [0.1, 0.5, 1.2]);
+        expect(model.waveformData, equals([0.1, 0.5, 1.0]));
         expect(() => model.waveformData.add(0.3), throwsUnsupportedError);
         await Future<void>.delayed(Duration.zero);
         expect(events, [
-          [0.1, 0.5, 1.2],
+          [0.1, 0.5, 1.0],
         ]);
         expect(notifyCount, 1);
 
@@ -133,6 +135,25 @@ void main() {
       });
     });
 
+    test('updateTranscription replaces transcript and active word', () {
+      final model = VoiceToTextModelState(initialTranscript: transcript);
+      var notifyCount = 0;
+      model.addListener(() => notifyCount++);
+
+      model.updateTranscription('Hello world from iva', activeWordIndex: 1);
+
+      expect(model.transcript, equals(['Hello', 'world', 'from', 'iva']));
+      expect(model.transcribedText, 'Hello world from iva');
+      expect(model.activeWordIndex, 1);
+      expect(notifyCount, 1);
+
+      model.updateTranscription('Hello world from iva', activeWordIndex: 1);
+      expect(notifyCount, 1, reason: 'no change, no notification');
+
+      model.updateTranscription('Hello world from iva');
+      expect(model.activeWordIndex, 3);
+    });
+
     test('recording state transitions control timer lifecycle', () {
       fakeAsync((async) {
         final model = VoiceToTextModelState(initialTranscript: transcript);
@@ -161,15 +182,19 @@ void main() {
         model.restartRecording();
         expect(model.recordingState, RecordingState.recording);
         expect(model.elapsedDuration, Duration.zero);
+        expect(model.transcript, isEmpty);
 
         async.elapse(const Duration(seconds: 1));
         expect(model.elapsedDuration, const Duration(seconds: 1));
 
+        model.updateTranscription('partial text');
         model.updateWaveform([0.2, 0.4]);
         model.discardRecording();
         expect(model.recordingState, RecordingState.idle);
         expect(model.elapsedDuration, Duration.zero);
-        expect(model.waveformData, isEmpty);
+        expect(model.waveformData, isNotEmpty);
+        expect(model.waveformData.every((v) => v == 0.0), isTrue);
+        expect(model.transcript, isEmpty);
 
         model.dispose();
       });

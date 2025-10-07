@@ -1,8 +1,9 @@
-import 'dart:async';
-import 'dart:math' as math;
+// no-op
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:iva_mobile/core/services/audio_capture.dart';
+import 'package:iva_mobile/core/services/speech_recognition.dart';
 
 import '../widget/control_buttons.dart';
 import '../widget/text_display.dart';
@@ -16,25 +17,42 @@ class VoiceToTextScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<VoiceToTextModelState>(
-      create: (_) => VoiceToTextModelState(
+      create: (context) => VoiceToTextModelState(
         initialTranscript: const [
-          'Herman',
-          'is',
-          'just',
-          'like',
+          'Tap',
           'the',
-          'rest',
+          'microphone',
+          'and',
+          'tell',
+          'your',
+          'AI',
+          'Chief',
           'of',
-          'us.',
-          'Everyday',
-          'he',
-          'has',
+          'Staff',
+          'what',
           'to',
-          'make',
-          'all',
-          'kin',
+          'do',
+          '—',
+          'send',
+          'a',
+          'Slack',
+          'message,',
+          'draft',
+          'an',
+          'email,',
+          'check',
+          'the',
+          'calendar,',
+          'or',
+          'follow',
+          'up',
+          'for',
+          'you.',
         ],
-        initialActiveWordIndex: 14,
+        initialActiveWordIndex: 0,
+        initialCursorVisible: false,
+        audio: context.read<AudioCaptureService>(),
+        speech: context.read<SpeechRecognitionService>(),
       ),
       child: const _VoiceToTextView(),
     );
@@ -49,52 +67,33 @@ class _VoiceToTextView extends StatefulWidget {
 }
 
 class _VoiceToTextViewState extends State<_VoiceToTextView> {
-  static const int _waveformSampleCount = 48;
-  static const Duration _waveformTick = Duration(milliseconds: 100);
-
-  final math.Random _random = math.Random();
-  Timer? _waveformTimer;
+  String? _shownError;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final model = context.read<VoiceToTextModelState>();
-      _pushWaveformSample(model);
-      _waveformTimer = Timer.periodic(
-        _waveformTick,
-        (_) => _pushWaveformSample(model),
-      );
-    });
+    // No-op: Real waveform is driven by audio amplitude when recording (issue #7)
   }
 
   @override
   void dispose() {
-    _waveformTimer?.cancel();
     super.dispose();
-  }
-
-  void _pushWaveformSample(VoiceToTextModel model) {
-    final halfCount = _waveformSampleCount ~/ 2;
-    final leading = List<double>.generate(halfCount, (index) {
-      final phase = index / halfCount * math.pi;
-      final base = (math.sin(phase) * 0.5) + 0.5;
-      final noise = (_random.nextDouble() - 0.5) * 0.15;
-      return (base + noise).clamp(0.0, 1.0);
-    });
-    final trailing = List<double>.from(leading.reversed);
-    final sample = [...leading, ...trailing];
-    if (sample.length < _waveformSampleCount) {
-      sample.addAll(
-        List<double>.filled(_waveformSampleCount - sample.length, 0.3),
-      );
-    }
-    model.updateWaveform(sample);
   }
 
   @override
   Widget build(BuildContext context) {
     final VoiceToTextModelState model = context.watch<VoiceToTextModelState>();
+
+    // Report new errors softly via SnackBar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final err = model.lastError;
+      if (err != null && err != _shownError && mounted) {
+        _shownError = err;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(err)));
+      }
+    });
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 227, 227, 198),
@@ -125,6 +124,7 @@ class _VoiceToTextViewState extends State<_VoiceToTextView> {
                       barWidth: 3,
                       spacing: 6,
                       backgroundColor: Colors.transparent,
+                      minBarHeight: 2,
                     ),
                   ),
                 ),
